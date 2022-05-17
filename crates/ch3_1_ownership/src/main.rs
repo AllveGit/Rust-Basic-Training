@@ -24,7 +24,7 @@ fn ownership_test2() {
 
 }
 
-fn string_test() {
+fn ownership_test3() {
     // 문자열 리터럴은 변경이 불가능하지만 스트링은 조작이 가능
     let mut s = String::from("Hello");
     s.push_str(", world!");
@@ -43,12 +43,98 @@ fn string_test() {
     // C++에서는  수명주기가 끝나는 시점에 바로 해제하는 이 drop() 패턴을 RAII 패턴이라고 한다.
 }
 
-fn string_test2() {
-    
+fn ownership_test4() {
+    let s1 = String::from("hello");
+    // 이렇게 힙에서 관리되는 데이터를 대입하였을 때는 "얕은 복사"를 한다.
+    // 즉, 메모리 상의 데이터를 복사하는 것이 아닌, 스택에 있는 포인터, 길이값, 용량값만 복사가 된다.
+    // 그렇기에 s1과 s2는 같은 메모리를 참조하고 있다.
+    let s2 = s1;
+
+    // 그런데 스코프를 벗어나면 drop함수를 호출하여 메모리를 해제한다고 하였다.
+    // 지금 상황이라면 두번 해제가 되어, 해제된 메모리를 또 해제할거기에 에러가 날 것이다.
+
+    // 그래서 rust는 이런상황을 막기 위해 "소유권"을 넘긴다. Unique포인터를 생각하면 된다.
+    // 오직 한개만 소유권을 들고 있을 수 있기 때문에 s1의 소유권이 s2에게 넘어가며 s1은 유효하지 않은 값으로 변경한다. 이를 이동이라고 한다.
+    // 그렇기에 지금 s1에 접근하면 에러가 난다.
+    // println!("{}, world!", s1) // 에러!
+}
+
+fn ownership_test5() {
+    // String같이 힙에서 저장되는 타입을 스택 데이터만이 아니라 힙 데이터까지 같이 복사하기를 원할 수 있다.
+    // 그럴때 사용하는 것이 clone 함수이다.
+    // clone은 스택, 힙 데이터 모두 깊은복사를 하여 리턴해준다.
+
+    let s1 = String::from("hello");
+    let s2 = s1.clone();
+
+    // 이제 에러가 나지 않는다!
+    println!("s1 = {}, s2 = {}", s1, s2);
+}
+
+fn ownership_test6() {
+    let x = 5;
+    // 이렇게 y에 대입해도 x는 유효한값으로 남아있다.
+    let y = x;
+
+    // 대입하는 타입이 Copy 트레잇을 구현하고 있다면, 대입 과정 후에도 예전 변수를 계속 유지 및 사용할 수 있다.
+    // 정수형, 부동소수형, bool, copy가 가능한 타입으로만 구성된 튜플타입등 스택에 저장할수 있는 타입들은 Copy트레잇을 가지고 있다. 
+    // 대입하고 유효하지 않은 값으로 바뀌는 타입들은 drop 트레잇을 구현하고 있다.
+    // drop 트레잇을 구현한 타입은 copy 트레잇을 구현하지 못하며 반대도 마찬가지다. 
+
+    println!("x = {}, y = {}", x, y);
+}
+
+fn ownership_test7() {
+     // gives_ownership 함수는 반환값의 소유권을 s1에게 이동시킨다.
+    let s1 = gives_ownership();
+
+     // s2가 스코프안으로 들어오며 소유권은 s2에게 있다.
+    let s2 = String::from("hello");
+
+    // s2의 소유권은 takes_and_gives_back 함수안으로 이동되었다.  
+    // 함수안으로 이동한 소유권은 리턴하며 다시 s3로 이동이 된다.
+    // 현재 s2는 유효하지 않은 값으로 설정이 되어있다. 
+    let s3 = takes_and_gives_back(s2); 
+
+    // 함수에 매개변수로 힙할당타입이 들어가면 소유권을 무조건 잃게 된다.
+    // 그렇기에 여러가지 힙할당타입을 매개변수로 받으면 최소 한가지를 제외한 나머지 타입들은 소유권을 잃어버린다.
+    // 이를 해결할 방법이 없을까?
+    // 임시적인 해결방법으로는 튜플로 매개변수를 리턴하여 소유권을 다시 돌려주는 방법이 있다.
+}
+
+fn gives_ownership() -> String {
+    let some_string = String::from("hello");
+    some_string
+}
+
+fn takes_and_gives_back(in_string: String) -> String {
+    in_string
+}
+
+fn ownership_test8() {
+    let s1 = String::from("hello");
+
+    // 이런 식으로 튜플로 받으면 모든 매개변수들의 소유권을 다시 돌려받을 수 있다.
+    // 하지만, 매번 이런식으로 소유권을 잃고 다시 돌려받아야 하는 과정이 너무 귀찮고 복잡하다.
+    // 그래서 참조자(reference)가 있다. 다른 언어들과 비슷한 의미이다.
+    // 참조자도 내용이 많기에 다음 cargo에서 정리하겠다.
+    let (s2, len) = calculate_strlen(s1);
+
+    println!("The length of '{}' is {}.", s2, len);
+}
+
+fn calculate_strlen(s: String) -> (String, usize) {
+    let length = s.len();
+    (s, length)
 }
 
 fn main() {
     ownership_test1();
     ownership_test2();
-    string_test();
+    ownership_test3();
+    ownership_test4();
+    ownership_test5();
+    ownership_test6();
+    ownership_test7();
+    ownership_test8();
 }
